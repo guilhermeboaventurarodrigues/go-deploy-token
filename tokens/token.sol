@@ -1,55 +1,69 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
 
-contract WorkToken is ERC20{
-    uint256 private _totalSupply;
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 
-    mapping(address => uint256) private _balances;
-    mapping(address => mapping(address => uint256)) private _allowances;
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
 
-    constructor(uint256 supply) ERC20("WorkToken", "WTK"){
-        supply = decimalsConvert(supply);
-        _mint(msg.sender, supply);
+contract WorkToken is IERC20{
+    string public constant name = "WorkToken";
+    string public constant symbol = "WTK";
+    uint256 public decimals = 18;
+    address private owner;
+    uint256 private totalsupply;
+    
+    mapping(address=>uint256) addressToBalance;
+    mapping(address => mapping(address=>uint256)) allowed;
+
+    constructor(){
+        totalsupply = 1000;
+        addressToBalance[msg.sender] = totalsupply;
+        owner = msg.sender;
     }
 
-    function totalSupply() public view override returns(uint256){
-         return _totalSupply;
+    function totalSupply() public override view returns(uint256){
+        return totalsupply;
     }
 
-    function decimals() public view override returns(uint8){
-        return 18;
-    }
-
-    function balanceOf(address wallet) public override view returns(uint256){
-        return _balances[wallet];
+    function balanceOf(address tokenOwner) public override view returns (uint256){
+         return addressToBalance[tokenOwner];
     }
 
     function transfer(address recipient, uint256 amount) public override returns(bool){
-        _transfer(msg.sender, recipient, amount);
+        require(addressToBalance[msg.sender] >= amount, "Balance insufficient");
+        addressToBalance[msg.sender] -= amount;
+        addressToBalance[recipient] += amount;
+        emit Transfer(msg.sender, recipient, amount);
         return true;
     }
 
-    
-    function _transfer(address sender, address recipient, uint256 amount) internal override {
-        uint256 senderBalance = _balances[sender];
-        require(senderBalance >= amount, "ERC20: transfer amount exeeds balance");
-        unchecked{
-            _balances[sender] = senderBalance - amount;
-        }
-        _balances[recipient] += amount;
-        emit Transfer(sender, recipient, amount);
+    function approve(address spender, uint256 amount) public override returns(bool){
+        require(amount <= addressToBalance[msg.sender], "Balance insufficient");
+        allowed[msg.sender][spender] = amount;
+        emit Approval(msg.sender,spender,amount);
+        return true;
     }
 
-    function _mint(address account, uint256 amount) internal override{
-        _totalSupply +=amount;
-        _balances[account] += amount;
-        emit Transfer(address(0), account, amount);
+    function allowance(address ownerToken, address spender) public override view returns (uint256){
+        return allowed[ownerToken][spender];
     }
 
-    function decimalsConvert(uint256 amount) private returns(uint256){
-            amount = amount*10**18;
-            return amount;
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool){
+        require(amount <= addressToBalance[sender], "Sender balance insufficient");
+        require(amount <= allowed[sender][msg.sender], "Allowed balance insufficient");
+        allowed[sender][msg.sender] -= amount;
+        addressToBalance[sender] -= amount;
+        addressToBalance[recipient] += amount;
+        emit Transfer(sender,recipient,amount);
+        return true;
     }
 }
