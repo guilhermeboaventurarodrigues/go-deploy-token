@@ -14,7 +14,7 @@ import (
 
 func main() {
 
-client, err := ethclient.Dial("HTTP://127.0.0.1:7545") //IP GANACHE
+	client, err := ethclient.Dial("HTTP://127.0.0.1:7545") //IP GANACHE
 	if err != nil {
 		log.Fatal(err)
 	}
